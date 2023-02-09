@@ -1,0 +1,27 @@
+Package: catscore
+Title: Capable and Tity Score Tools
+Version: 0.0.1
+Date: 2023-02-08
+Authors@R: c(
+  person(given = "Songqi", family = "Duan", 
+  email = "songqi.duan@outlook.com", 
+  role = c("aut", "cre"), 
+  comment = c(ORCID = "0000-0002-0822-5883"))
+  )
+Maintainer: Songqi Duan <songqi.duan@outlook.com>
+Description: A capable and tity pathway activity scores (PASs) analysis tools.
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.2.3
+Imports: 
+    msigdbr,
+    AUCell,
+    GSVA,
+    UCell,
+    VISION
+Suggests: 
+    renv
+License: MIT + file LICENSE
+Depends: 
+    R (>= 2.10)
+LazyData: true
