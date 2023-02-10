@@ -1,33 +1,39 @@
 #' Construct gene sets
 #'
-#' @param gene_sets
-#' @param species
+#' @param gene_sets MSigDB collection abbreviation, such as H or CP:KEGG.
+#' @param species Species name, such as human or mouse.
 #'
-#' @return
+#' @return A list of vectors of genes for biological pathway.
+#'
+#' @importFrom msigdbr msigdbr_collections msigdbr
+#'
 #' @export
 #'
 #' @examples
+#' gene_sest <- construct_gene_sets(gene_sets = "H", species = "human")
 construct_gene_sets <- function(gene_sets,
                                 species = "human") {
   # TODO: Gene sets from GO, KEGG, and RECTOME
   # Gene sets from msigdbr
-  collections <- msigdbr::msigdbr_collections()
+  collections <- msigdbr_collections()
   gs_cat <- names(table(collections$gs_cat))
   gs_subcat <- names(table(collections$gs_subcat))[-1]
   if (all(gene_sets %in% gs_cat)) {
-    gene_sets <- purrr::map_dfr(gene_sets, function(x) {
-      msigdbr::msigdbr(
+    gene_sets <- lapply(gene_sets, function(x) {
+      msigdbr(
         species = species,
         category = x
       )[, c("gs_name", "gene_symbol")]
     })
+    gene_sets <- do.call(rbind, gene_sets)
   } else if (all(gene_sets %in% gs_subcat)) {
-    gene_sets <- purrr::map_dfr(gene_sets, function(x) {
-      msigdbr::msigdbr(
+    gene_sets <- lapply(gene_sets, function(x) {
+      msigdbr(
         species = species,
         subcategory = x
       )[, c("gs_name", "gene_symbol")]
     })
+    gene_sets <- do.call(rbind, gene_sets)
   } else {
     stop("The gene sets name is wrong!")
   }
@@ -37,14 +43,25 @@ construct_gene_sets <- function(gene_sets,
 
 #' Pathway activity scores (PASs)
 #'
-#' @param x
-#' @param gene_sets
-#' @param species
-#' @param method
-#' @param ncores
-#' @param ...
+#' @param x Gene expression data which can be given either as a Seurat object,
+#' or as a matrix of expression values where rows correspond to genes and
+#' columns correspond to samples. This matrix can be also in a sparse format,
+#' as a dgCMatrix.
+#' @param gene_sets A list of vectors of genes for biological pathway.
+#' @param species Species name, such as human or mouse.
+#' @param method Method to employ in estimation of pathway activity scores
+#' (PASs). By default this is set to AUCell (Sara Aibar et al., Nature
+#' Methods, 2017) and other options are VISION (David DeTomaso et al.,
+#' Nature Communications, 2019), ssGSEA (David A. Barbie et al., Nature, 2009),
+#' or GSVA (Sonja Hänzelmann et al., BMC Bioinformatics, 2013).
+#' @param ncores Number of cores to use for computation.
+#' @param return_df Whether to return a data.frame.
+#' @param ... Other arguments.
 #'
-#' @return
+#' @return A data.frame of pathway activity scores.
+#'
+#' @importFrom Matrix t as.matrix
+#'
 #' @export
 #'
 #' @examples
@@ -61,7 +78,7 @@ cat_score <- function(x,
                       species = "human",
                       method = "AUCell",
                       ncores = 1,
-                      return_seurat_obj = TRUE,
+                      return_df = FALSE,
                       ...) {
   match.arg(method, c("AUCell", "GSVA", "ssGSEA", "VISION"))
   # Get counts
@@ -69,9 +86,9 @@ cat_score <- function(x,
     assay <- "RNA"
     slot <- "counts"
     data_matrix <-
-      Matrix::as.matrix(Seurat::GetAssayData(x, assay = assay, slot = slot))
+      as.matrix(Seurat::GetAssayData(x, assay = assay, slot = slot))
   } else {
-    data_matrix <- Matrix::as.matrix(x)
+    data_matrix <- as.matrix(x)
   }
   data_matrix <- data_matrix[rowSums(data_matrix) > 0, ]
 
@@ -84,6 +101,9 @@ cat_score <- function(x,
   # Score
   # VISION
   if (method == "VISION") {
+    if (!package_check("VISION", error = FALSE)) {
+      stop("Please install VISION: https://github.com/YosefLab/VISION")
+    }
     signatures <- purrr::map(names(gene_sets), function(x) {
       sig_data <- rep(1, length(gene_sets[[x]]))
       names(sig_data) <- gene_sets[[x]]
@@ -93,17 +113,21 @@ cat_score <- function(x,
       )
     })
     score_res <- VISION::Vision(
-      data = as(data_matrix, "dMatrix"),
+      data = methods::as(data_matrix, "dMatrix"),
       signatures = signatures,
       ...
     )
     options(mc.cores = ncores)
     score_res <- VISION::analyze(score_res)
-    score_data <- as.data.frame(Matrix::t(score_res@SigScores))
+    score_data <- as.data.frame(t(score_res@SigScores))
     colnames(score_data) <- colnames(data_matrix)
   }
   # AUCelll
   if (method == "AUCell") {
+    if (!package_check("AUCell", error = FALSE)) {
+      stop("Please install AUCell:
+           https://bioconductor.org/packages/release/bioc/html/AUCell.html")
+    }
     # 1. Build gene-expression rankings for each cell
     cells_rankings <- AUCell::AUCell_buildRankings(
       exprMat = data_matrix,
@@ -124,6 +148,10 @@ cat_score <- function(x,
   }
   # GSVA
   if (method == "GSVA") {
+    if (!package_check("GSVA", error = FALSE)) {
+      stop("Please install GSVA:
+           https://bioconductor.org/packages/release/bioc/html/GSVA.html")
+    }
     score_data <-
       GSVA::gsva(
         expr = data_matrix,
@@ -140,6 +168,10 @@ cat_score <- function(x,
   }
   # ssGSEA
   if (method == "ssGSEA") {
+    if (!package_check("GSVA", error = FALSE)) {
+      stop("Please install GSVA:
+           https://bioconductor.org/packages/release/bioc/html/GSVA.html")
+    }
     score_data <-
       GSVA::gsva(
         expr = data_matrix,
@@ -155,27 +187,21 @@ cat_score <- function(x,
       )
     score_data <- as.data.frame(score_data)
   }
-
-  if (inherits(x = x, what = "Seurat") && return_seurat_obj) {
+  if (return_df) {
+    return(score_data)
+  } else if (inherits(x = x, what = "Seurat")) {
     x[["score"]] <- create_assay_object(counts = score_data)
     return(x)
-  } else {
-    return(score_data)
   }
 }
 
 create_assay_object <-
-  function(counts,
-           data,
-           check_matrix = FALSE) {
-    if (missing(x = counts) && missing(x = data)) {
-      stop("Must provide either 'counts' or 'data'")
-    } else if (!missing(x = counts) && !missing(x = data)) {
-      stop("Either 'counts' or 'data' must be missing; both cannot be provided")
-    } else if (!missing(x = counts)) {
+  function(counts) {
+    if (!missing(x = counts)) {
       if (anyDuplicated(x = rownames(x = counts))) {
         warning(
-          "Non-unique features (rownames) present in the input matrix, making unique",
+          "Non-unique features (rownames) present in the input matrix,
+          making unique",
           call. = FALSE,
           immediate. = TRUE
         )
@@ -184,7 +210,8 @@ create_assay_object <-
       }
       if (anyDuplicated(x = colnames(x = counts))) {
         warning(
-          "Non-unique cell names (colnames) present in the input matrix, making unique",
+          "Non-unique cell names (colnames) present in the input matrix,
+          making unique",
           call. = FALSE,
           immediate. = TRUE
         )
@@ -207,39 +234,7 @@ create_assay_object <-
           counts <- Seurat::as.sparse(x = counts)
         }
       }
-      if (isTRUE(x = check_matrix)) {
-        SeuratObject::CheckMatrix(object = counts)
-      }
       data <- counts
-    } else if (!missing(x = data)) {
-      if (anyDuplicated(x = rownames(x = data))) {
-        warning(
-          "Non-unique features (rownames) present in the input matrix, making unique",
-          call. = FALSE,
-          immediate. = TRUE
-        )
-        rownames(x = data) <- make.unique(names = rownames(x = data))
-      }
-      if (anyDuplicated(x = colnames(x = data))) {
-        warning(
-          "Non-unique cell names (colnames) present in the input matrix, making unique",
-          call. = FALSE,
-          immediate. = TRUE
-        )
-        colnames(x = data) <- make.unique(names = colnames(x = data))
-      }
-      if (is.null(x = colnames(x = data))) {
-        stop("No cell names (colnames) names present in the input matrix")
-      }
-      if (any(rownames(x = data) == "")) {
-        stop("Feature names of data matrix cannot be empty",
-          call. = FALSE
-        )
-      }
-      if (nrow(x = data) > 0 && is.null(x = rownames(x = data))) {
-        stop("No feature names (rownames) names present in the input matrix")
-      }
-      counts <- new(Class = "matrix")
     }
     if (!is.vector(x = rownames(x = counts))) {
       rownames(x = counts) <- as.vector(x = rownames(x = counts))
@@ -254,11 +249,11 @@ create_assay_object <-
       colnames(x = data) <- as.vector(x = colnames(x = data))
     }
     init_meta_features <- data.frame(row.names = rownames(x = data))
-    assay <- new(
+    assay <- methods::new(
       Class = "Assay",
       counts = counts,
       data = data,
-      scale.data = new(Class = "matrix"),
+      scale.data = methods::new(Class = "matrix"),
       meta.features = init_meta_features,
       misc = list()
     )

@@ -3,3 +3,8 @@
 export(cat_score)
 export(compare_pathways)
 export(construct_gene_sets)
+importFrom(Matrix,as.matrix)
+importFrom(Matrix,t)
+importFrom(msigdbr,msigdbr)
+importFrom(msigdbr,msigdbr_collections)
+importFrom(stats,model.matrix)
