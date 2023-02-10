@@ -7,8 +7,16 @@
 construct_gene_sets(gene_sets, species = "human")
 }
 \arguments{
-\item{species}{}
+\item{gene_sets}{MSigDB collection abbreviation, such as H or CP:KEGG.}
+
+\item{species}{Species name, such as human or mouse.}
+}
+\value{
+A list of vectors of genes for biological pathway.
 }
 \description{
 Construct gene sets
+}
+\examples{
+gene_sest <- construct_gene_sets(gene_sets = "H", species = "human")
 }

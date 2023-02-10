@@ -7,7 +7,24 @@
 compare_pathways(x, treatment, control, group_by = NULL, metadata = NULL)
 }
 \arguments{
-\item{metadata}{}
+\item{x}{Pathway activity scores which can be given either as a Seurat
+object, or as a matrix of expression values where rows correspond to
+pathways and columns correspond to samples.}
+
+\item{treatment}{Treatment group name.}
+
+\item{control}{Control group name}
+
+\item{group_by}{Column names in the metadata that contains grouping
+information for the treatment and control groups.}
+
+\item{metadata}{Metadata for each sample. Should be a data.frame where the
+rows are sample names and the columns are additional metadata fields. Row
+names in the metadata need to match the column names of the
+pathway activity scores.}
+}
+\value{
+A data.frame of differential pathway activity scores.
 }
 \description{
 Analysis of differential pathway activity scores

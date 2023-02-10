@@ -10,12 +10,34 @@ cat_score(
   species = "human",
   method = "AUCell",
   ncores = 1,
-  return_seurat_obj = TRUE,
+  return_df = FALSE,
   ...
 )
 }
 \arguments{
-\item{...}{}
+\item{x}{Gene expression data which can be given either as a Seurat object,
+or as a matrix of expression values where rows correspond to genes and
+columns correspond to samples. This matrix can be also in a sparse format,
+as a dgCMatrix.}
+
+\item{gene_sets}{A list of vectors of genes for biological pathway.}
+
+\item{species}{Species name, such as human or mouse.}
+
+\item{method}{Method to employ in estimation of pathway activity scores
+(PASs). By default this is set to AUCell (Sara Aibar et al., Nature
+Methods, 2017) and other options are VISION (David DeTomaso et al.,
+Nature Communications, 2019), ssGSEA (David A. Barbie et al., Nature, 2009),
+or GSVA (Sonja Hänzelmann et al., BMC Bioinformatics, 2013).}
+
+\item{ncores}{Number of cores to use for computation.}
+
+\item{return_df}{Whether to return a data.frame.}
+
+\item{...}{Other arguments.}
+}
+\value{
+A data.frame of pathway activity scores.
 }
 \description{
 Pathway activity scores (PASs)
@@ -24,7 +46,9 @@ Pathway activity scores (PASs)
 \dontrun{
 data("pbmc_small")
 score_data <- pbmc_small |>
-  cat_score(gene_sets = "CP:KEGG",
-            method = "gsva")
+  cat_score(
+    gene_sets = "CP:KEGG",
+    method = "gsva"
+  )
 }
 }
