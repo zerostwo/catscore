@@ -51,8 +51,10 @@ construct_gene_sets <- function(gene_sets,
 #' \dontrun{
 #' data("pbmc_small")
 #' score_data <- pbmc_small |>
-#'   cat_score(gene_sets = "CP:KEGG",
-#'             method = "gsva")
+#'   cat_score(
+#'     gene_sets = "CP:KEGG",
+#'     method = "gsva"
+#'   )
 #' }
 cat_score <- function(x,
                       gene_sets,
@@ -97,7 +99,7 @@ cat_score <- function(x,
     )
     options(mc.cores = ncores)
     score_res <- VISION::analyze(score_res)
-    score_data <- data.frame(Matrix::t(score_res@SigScores))
+    score_data <- as.data.frame(Matrix::t(score_res@SigScores))
     colnames(score_data) <- colnames(data_matrix)
   }
   # AUCelll
@@ -118,7 +120,7 @@ cat_score <- function(x,
         nCores = ncores,
         ...
       )
-    score_data <- data.frame(AUCell::getAUC(score_raw))
+    score_data <- as.data.frame(AUCell::getAUC(score_raw))
   }
   # GSVA
   if (method == "GSVA") {
@@ -134,7 +136,7 @@ cat_score <- function(x,
         BPPARAM = BiocParallel::SerialParam(progressbar = TRUE),
         ...
       )
-    score_data <- data.frame(score_data)
+    score_data <- as.data.frame(score_data)
   }
   # ssGSEA
   if (method == "ssGSEA") {
@@ -151,7 +153,7 @@ cat_score <- function(x,
         BPPARAM = BiocParallel::SerialParam(progressbar = TRUE),
         ...
       )
-    score_data <- data.frame(score_data)
+    score_data <- as.data.frame(score_data)
   }
 
   if (inherits(x = x, what = "Seurat") && return_seurat_obj) {
@@ -202,11 +204,11 @@ create_assay_object <-
       }
       if (!inherits(x = counts, what = "dgCMatrix")) {
         if (inherits(x = counts, what = "data.frame")) {
-          counts <- as.sparse(x = counts)
+          counts <- Seurat::as.sparse(x = counts)
         }
       }
       if (isTRUE(x = check_matrix)) {
-        CheckMatrix(object = counts)
+        SeuratObject::CheckMatrix(object = counts)
       }
       data <- counts
     } else if (!missing(x = data)) {
